@@ -2,7 +2,7 @@ package utils
 
 import "time"
 
-func IsElementAlreadyExists(arr []string, element string) bool {
+func IsElementExists(arr []string, element string) bool {
 	var res bool
 	for _,v := range arr {
 		if v == element {
