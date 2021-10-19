@@ -24,10 +24,10 @@ var (
 func init()  {
 	flag.BoolVar(&Help, "help", false, "oss对象改名")
 	flag.StringVar(&OssEndpoint, "ossEndpoint",
-		"oss-cn-beijing.aliyuncs.com","输入OSS的Endpoint")
-	flag.StringVar(&OssAccessKeyID, "accessKeyID", "LTAI5tD94RwocpvLQc3BQcGd","输入accessKeyID")
-	flag.StringVar(&OssAccessKeySecret, "accessKeySecret", "oTC54R50Wbp0gPfB9JWApMRjuYShAn","输入accessKeySecret")
-	flag.StringVar(&OssBucketName, "bucketName", "chengyh2go","输入bucket name")
+		"","输入OSS的Endpoint")
+	flag.StringVar(&OssAccessKeyID, "accessKeyID", "","输入accessKeyID")
+	flag.StringVar(&OssAccessKeySecret, "accessKeySecret", "","输入accessKeySecret")
+	flag.StringVar(&OssBucketName, "bucketName", "","输入bucket name")
 	flag.IntVar(&OssExpireDay, "OssExpireDay", 3,"设置过期天数，默认为3")
 	flag.Usage = usage
 }
