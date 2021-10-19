@@ -18,22 +18,22 @@ var (
 	OssAccessKeyID string
 	OssAccessKeySecret string
 	OssBucketName string
-	OssExpireDay int
+	RetentionDays int
 )
 
 func init()  {
-	flag.BoolVar(&Help, "help", false, "oss对象改名")
+	flag.BoolVar(&Help, "help", false, "oss过期对象清除工具")
 	flag.StringVar(&OssEndpoint, "ossEndpoint",
 		"","输入OSS的Endpoint")
-	flag.StringVar(&OssAccessKeyID, "accessKeyID", "","输入accessKeyID")
-	flag.StringVar(&OssAccessKeySecret, "accessKeySecret", "","输入accessKeySecret")
-	flag.StringVar(&OssBucketName, "bucketName", "","输入bucket name")
-	flag.IntVar(&OssExpireDay, "OssExpireDay", 3,"设置过期天数，默认为3")
+	flag.StringVar(&OssAccessKeyID, "ossAccessKeyID", "","输入ossAccessKeyID")
+	flag.StringVar(&OssAccessKeySecret, "ossAccessKeySecret", "","输入ossAccessKeySecret")
+	flag.StringVar(&OssBucketName, "ossBucketName", "","输入bucket name")
+	flag.IntVar(&RetentionDays, "retentionDays", 3,"设置过期天数，默认为3")
 	flag.Usage = usage
 }
 
 func usage() {
-	_, _ = fmt.Fprintf(os.Stdout, `oss对象改名: v1.0
+	_, _ = fmt.Fprintf(os.Stdout, `oss过期对象清除工具: v1.0
 Options:
 `)
 	flag.PrintDefaults()
@@ -63,13 +63,13 @@ func main() {
 		// 创建OSSClient实例。
 		client, err := oss.New(OssEndpoint, OssAccessKeyID, OssAccessKeySecret)
 		if err != nil {
-			fmt.Println("Error:", err)
+			log.Println("Error:", err)
 			os.Exit(-1)
 		}
 		// 获取存储空间。
 		bucket, err := client.Bucket(OssBucketName)
 		if err != nil {
-			fmt.Println("Error:", err)
+			log.Println("Error:", err)
 			os.Exit(-1)
 		}
 
@@ -88,20 +88,26 @@ func main() {
 		2，expired库
 		 */
 
+		/*for _, v := range listObjects.Objects {
+			log.Println(v.Key)
+		}*/
+
 		//首先构造出current库
 		currentDB := make(map[string][]string)
 		for _, v := range listObjects.Objects {
 			//找出：DM/20211013/T_ODS_LC_T_USER_INFO_HV.flg这样的key
-			splitStr := strings.Split(v.Key, "/")
-			destPrefix := splitStr[0]
-			if (strings.HasPrefix(splitStr[1],"2") || strings.HasPrefix(splitStr[1],"1")) &&
-				len(splitStr[1]) == 8 { //只针对DM/20211013这种格式的object做处理
-				//用date变量接收splitStr中的日期字符串
-				date := splitStr[1]
+			if strings.Contains(v.Key,"/") {
+				splitStr := strings.Split(v.Key, "/")
+				destPrefix := splitStr[0]
+				if (strings.HasPrefix(splitStr[1],"2") || strings.HasPrefix(splitStr[1],"1")) &&
+					len(splitStr[1]) == 8 { //只针对DM/20211013这种格式的object做处理
+					//用date变量接收splitStr中的日期字符串
+					date := splitStr[1]
 
-				//如果日期currentDb中的日期字符串数组还没有包括date，才append进去
-				if !utils.IsElementExists(currentDB[destPrefix],date) {
-					currentDB[destPrefix] = append(currentDB[destPrefix],date)
+					//如果日期currentDb中的日期字符串数组还没有包括date，才append进去
+					if !utils.IsElementExists(currentDB[destPrefix],date) {
+						currentDB[destPrefix] = append(currentDB[destPrefix],date)
+					}
 				}
 			}
 		}
@@ -115,30 +121,31 @@ func main() {
 			if len(v) > 3 {
 				needSortArr := dateList(v)
 				sort.Sort(needSortArr) //倒序排列
-				expiredDB[k] = needSortArr[OssExpireDay:]  //从第4个元素开始取
+				expiredDB[k] = needSortArr[RetentionDays:]  //从第4个元素开始取
 			}
 		}
 		log.Println("找到的过期信息：",expiredDB)
 
 		//清除过期的对象文件
 		for _, v := range listObjects.Objects {
-			if !strings.HasSuffix(v.Key,"/") {
-				splitStr := strings.Split(v.Key, "/")
-				destPrefix := splitStr[0]
-				if (strings.HasPrefix(splitStr[1],"2") || strings.HasPrefix(splitStr[1],"1")) &&
-					len(splitStr[1]) == 8 {
-					date := splitStr[1]
-					if utils.IsElementExists(expiredDB[destPrefix],date) {
-						//fmt.Println("找到删除的对象：",v.Key)
-						err := bucket.DeleteObject(v.Key)
-						if err != nil {
-							log.Printf("删除对象：%v 失败!\n",v.Key)
-						} else {
-							log.Printf("删除过期对象：%v 成功！\n",v.Key)
+			if !strings.HasSuffix(v.Key,"/") && strings.Contains(v.Key,"/") {
+
+					splitStr := strings.Split(v.Key, "/")
+					destPrefix := splitStr[0]
+					if (strings.HasPrefix(splitStr[1],"2") || strings.HasPrefix(splitStr[1],"1")) &&
+						len(splitStr[1]) == 8 {
+						date := splitStr[1]
+						if utils.IsElementExists(expiredDB[destPrefix],date) {
+							//fmt.Println("找到删除的对象：",v.Key)
+							err := bucket.DeleteObject(v.Key)
+							if err != nil {
+								log.Printf("删除对象：%v 失败!\n",v.Key)
+							} else {
+								log.Printf("删除过期对象：%v 成功！\n",v.Key)
+							}
 						}
 					}
 				}
-			}
 		}
 
 		//过期对象文件清除之后，清除过期的空目录
