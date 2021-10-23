@@ -81,7 +81,8 @@ func main() {
 		//所以需要找出包含过期时间文件夹下的所有object，并删除
 		//具体操作：先过滤掉空目录，如DM_DT/20211013/，找出DM/20211013/T_ODS_LC_T_USER_INFO_HV.flg这样的过期文件
 
-		listObjects, _ := bucket.ListObjects()
+		//默认可以列举100个文件，最大支持1000，参考：https://help.aliyun.com/document_detail/88639.html
+		listObjects, _ := bucket.ListObjects(oss.MaxKeys(1000))
 
 		/*首先构造2个数据库，格式：map[string]string
 		1，current库
